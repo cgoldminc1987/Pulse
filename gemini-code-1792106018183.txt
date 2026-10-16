@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    const Icons = {
+      Video: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
+      VideoOff: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+      Mic: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>,
+      MicOff: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>,
+      Phone: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+      PhoneOff: () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+      Send: () => <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+      Globe: () => <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+      CheckCircle: () => <svg className="w-12 h-12 text-emerald-500 mx-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    };
+
+    function FrenchTutorApp() {
+      const [appMode, setAppMode] = useState('tutor');
+      const [view, setView] = useState('dashboard');
+      const [callMode, setCallMode] = useState('video');
+      const [activeStudent, setActiveStudent] = useState(null);
+      const [students, setStudents] = useState([
+        { id: 1, name: 'Emma Watson', level: 'Intermediate', status: 'Waiting', avatar: 'https://placehold.co/150x150/e2e8f0/475569?text=EW' },
+        { id: 2, name: 'Liam Chen', level: 'Beginner', status: 'Offline', avatar: 'https://placehold.co/150x150/e2e8f0/475569?text=LC' },
+        { id: 3, name: 'Sophia Martinez', level: 'Advanced', status: 'Waiting', avatar: 'https://placehold.co/150x150/e2e8f0/475569?text=SM' },
+      ]);
+
+      const handleStartCall = (student, mode) => {
+        setActiveStudent(student);
+        setCallMode(mode);
+        setView('incall');
+      };
+
+      const handleEndCall = () => {
+        setView('dashboard');
+        setActiveStudent(null);
+      };
+
+      const handleNewBooking = (studentData) => {
+        const newStudent = {
+          id: Date.now(),
+          name: studentData.name,
+          level: studentData.level,
+          status: 'Waiting',
+          avatar: `https://placehold.co/150x150/e2e8f0/475569?text=${studentData.name.substring(0,2).toUpperCase()}`
+        };
+        setStudents(prev => [...prev, newStudent]);
+      };
+
+      if (appMode === 'student-portal') {
+        return <StudentPortal onBook={handleNewBooking} onGoBack={() => setAppMode('tutor')} />;
+      }
+
+      return (
+        <div className="flex flex-col md:flex-row min-h-screen bg-slate-100 font-sans">
+          <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 p-6 flex flex-col justify-between">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow">P</div>
+                <h1 className="text-xl font-bold tracking-tight text-slate-800">Parler.</h1>
+              </div>
+              <div className="space-y-1">
+                <button className="w-full text-left px-4 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-sm">Dashboard</button>
+                <button
+                  onClick={() => setAppMode('student-portal')}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition"
+                >
+                  <Icons.Globe /> Student Portal
+                </button>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">PL</div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Prof. Laurent</p>
+                <span className="text-xs text-emerald-600 font-medium">● Online</span>
+              </div>
+            </div>
+          </aside>
+
+          <main className="flex-1 overflow-y-auto">
+            {view === 'dashboard' ? (
+              <Dashboard students={students} onStartCall={handleStartCall} />
+            ) : (
+              <CallRoom student={activeStudent} mode={callMode} onEndCall={handleEndCall} />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    function Dashboard({ students, onStartCall }) {
+      const waitingCount = students.filter(s => s.status === 'Waiting').length;
+
+      return (
+        <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Bonjour, Laurent! 👋</h2>
+            <p className="text-slate-600 mt-1">{waitingCount} student{waitingCount !== 1 ? 's' : ''} currently waiting for practice.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {students.map(student => (
+              <div key={student.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center gap-4 mb-4">
+                  <img src={student.avatar} alt={student.name} className="w-12 h-12 rounded-full border border-slate-200" />
+                  <div>
+                    <h3 className="font-bold text-slate-800 leading-tight">{student.name}</h3>
+                    <span className="inline-block mt-1 text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                      {student.level}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-500 mb-6">
+                  {student.status === 'Waiting' ? '🟢 Ready to join session.' : '⚪ Currently offline.'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onStartCall(student, 'video')}
+                    disabled={student.status !== 'Waiting'}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-sm font-semibold transition"
+                  >
+                    <Icons.Video /> Video
+                  </button>
+                  <button
+                    onClick={() => onStartCall(student, 'audio')}
+                    disabled={student.status !== 'Waiting'}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:bg-slate-50 disabled:text-slate-400 text-slate-700 rounded-xl text-sm font-semibold transition"
+                  >
+                    <Icons.Phone /> Audio
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function CallRoom({ student, mode, onEndCall }) {
+      const [isMuted, setIsMuted] = useState(false);
+      const [isVideoOff, setIsVideoOff] = useState(mode === 'audio');
+      const [messages, setMessages] = useState([
+        { id: 1, sender: 'system', text: `Session started with ${student?.name || 'Student'}` },
+        { id: 2, sender: 'student', text: 'Bonjour professeur! Comment allez-vous?' },
+      ]);
+      const [newMessage, setNewMessage] = useState('');
+      const localVideoRef = useRef(null);
+
+      useEffect(() => {
+        let stream = null;
+        if (!isVideoOff && navigator.mediaDevices?.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(s => {
+              stream = s;
+              if (localVideoRef.current) localVideoRef.current.srcObject = s;
+            })
+            .catch(() => {});
+        }
+        return () => {
+          if (stream) stream.getTracks().forEach(t => t.stop());
+        };
+      }, [isVideoOff]);
+
+      const sendMessage = (e) => {
+        e.preventDefault();
+        if (!newMessage.trim()) return;
+        setMessages(prev => [...prev, { id: Date.now(), sender: 'tutor', text: newMessage }]);
+        setNewMessage('');
+        setTimeout(() => {
+          const replies = ["Oui, absolument!", "Comment on dit ça en français?", "Très bien!", "C'est noté."];
+          setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'student', text: replies[Math.floor(Math.random() * replies.length)] }]);
+        }, 1200);
+      };
+
+      return (
+        <div className="flex flex-col lg:flex-row h-screen bg-slate-900 text-white">
+          <div className="flex-1 flex flex-col p-6">
+            <div className="flex-1 relative bg-slate-800 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-700">
+              <div className="text-center">
+                <img src={student?.avatar} alt={student?.name} className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-slate-600" />
+                <h3 className="text-lg font-bold">{student?.name}</h3>
+                <p className="text-slate-400 text-sm">{mode === 'video' ? 'Live Video Room' : 'Voice Only Room'}</p>
+              </div>
+
+              {!isVideoOff && (
+                <div className="absolute bottom-4 right-4 w-36 h-28 bg-black rounded-xl overflow-hidden border border-slate-600 shadow-lg">
+                  <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
+                </div>
+              )}
+            </div>
+
+            <div className="h-20 flex items-center justify-center gap-4">
+              <button onClick={() => setIsMuted(!isMuted)} className={`p-3.5 rounded-full ${isMuted ? 'bg-red-500' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                {isMuted ? <Icons.MicOff /> : <Icons.Mic />}
+              </button>
+              <button onClick={() => setIsVideoOff(!isVideoOff)} className={`p-3.5 rounded-full ${isVideoOff ? 'bg-red-500' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                {isVideoOff ? <Icons.VideoOff /> : <Icons.Video />}
+              </button>
+              <button onClick={onEndCall} className="p-3.5 rounded-full bg-red-600 hover:bg-red-700">
+                <Icons.PhoneOff />
+              </button>
+            </div>
+          </div>
+
+          <div className="w-full lg:w-80 bg-white text-slate-800 flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200 h-72 lg:h-auto">
+            <div className="p-4 border-b border-slate-200 font-bold text-sm">Class Chat</div>
+            <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+              {messages.map(m => (
+                <div key={m.id} className={`text-sm ${m.sender === 'system' ? 'text-center text-slate-400 text-xs' : m.sender === 'tutor' ? 'text-right' : 'text-left'}`}>
+                  {m.sender !== 'system' && (
+                    <span className={`inline-block px-3 py-2 rounded-xl ${m.sender === 'tutor' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                      {m.text}
+                    </span>
+                  )}
+                  {m.sender === 'system' && <span>{m.text}</span>}
+                </div>
+              ))}
+            </div>
+            <form onSubmit={sendMessage} className="p-3 border-t border-slate-200 flex gap-2">
+              <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type in French..." className="flex-1 bg-slate-100 rounded-lg px-3 py-2 text-sm outline-none" />
+              <button type="submit" className="bg-indigo-600 text-white p-2 rounded-lg"><Icons.Send /></button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    function StudentPortal({ onBook, onGoBack }) {
+      const [step, setStep] = useState(1);
+      const [formData, setFormData] = useState({ name: '', email: '', level: 'Beginner' });
+
+      return (
+        <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center justify-center">
+          <div className="w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
+            <button onClick={onGoBack} className="text-sm font-semibold text-indigo-600 mb-6 block">← Back to Dashboard</button>
+            {step === 1 && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Book French Practice</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Full Name</label>
+                    <input className="w-full border rounded-xl p-3 outline-none focus:border-indigo-600" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Jane Doe" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Email</label>
+                    <input className="w-full border rounded-xl p-3 outline-none focus:border-indigo-600" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="jane@example.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Level</label>
+                    <select className="w-full border rounded-xl p-3 outline-none" value={formData.level} onChange={e => setFormData({...formData, level: e.target.value})}>
+                      <option>Beginner</option>
+                      <option>Intermediate</option>
+                      <option>Advanced</option>
+                    </select>
+                  </div>
+                  <button onClick={() => { if(formData.name) { onBook(formData); setStep(2); } }} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold mt-4 transition">
+                    Confirm Booking
+                  </button>
+                </div>
+              </div>
+            )}
+            {step === 2 && (
+              <div className="text-center py-6">
+                <Icons.CheckCircle />
+                <h3 className="text-xl font-bold text-slate-800 mt-4">Booking Confirmed!</h3>
+                <p className="text-slate-600 text-sm mt-2">Merci {formData.name}! You are now on the tutor's dashboard list.</p>
+                <button onClick={onGoBack} className="mt-6 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm">
+                  Return to Dashboard
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<FrenchTutorApp />);
+  </script>
+</body>
+</html>
