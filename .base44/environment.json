@@ -1,0 +1,18 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/healthz",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "description": "Stripe endpoint signing secret (whsec_...) used to verify Stripe-Signature on /webhook/stripe. Copy it from the Stripe Dashboard webhook endpoint, or from `stripe listen --forward-to localhost:8000/webhook/stripe` for local CLI forwarding. Required at boot: the settings model has no default.",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "INTERNAL_API_KEY_HASHES",
+      "description": "Optional. Comma-separated SHA-256 hex digests of the X-API-Key values accepted by /internal/webhook/replay/{event_id}. Leave empty to keep that operational endpoint locked (it answers 401).",
+      "requiredAtBoot": false
+    }
+  ]
+}

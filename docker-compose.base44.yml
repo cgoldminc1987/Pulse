@@ -1,0 +1,139 @@
+# Base44 sandbox/dev stack for the Stripe webhook receiver.
+#
+# Runs the application FROM THE CLONED SOURCE: the service directory is
+# bind-mounted at /srv and served with `uvicorn --reload`, so edits show up
+# without rebuilding. Local PostgreSQL and Redis are plain infra containers.
+# Secrets for external services come from the platform file
+# /run/base44/app.env (see AGENTS.md); local DB/Redis credentials are set
+# inline below.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stripe
+      POSTGRES_PASSWORD: stripe
+      POSTGRES_DB: stripe_webhooks
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stripe -d stripe_webhooks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: on-failure
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: on-failure
+
+  # One-shot schema job. The API no longer creates tables at startup.
+  migrate:
+    build: &app_build
+      context: .
+      dockerfile: .base44/Dockerfile.api
+    working_dir: /srv
+    command: ["alembic", "upgrade", "head"]
+    environment: &app_env
+      DATABASE_URL: postgresql+psycopg://stripe:stripe@db:5432/stripe_webhooks
+      REDIS_URL: redis://redis:6379/0
+    env_file:
+      - /run/base44/app.env
+    volumes: &app_volumes
+      - ./stripe-fastapi-webhook:/srv
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: *app_build
+    working_dir: /srv
+    command:
+      - sh
+      - -ec
+      - exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /srv/app --proxy-headers
+    ports:
+      # 3000 is the preview/web entry point, 8000 is the same service for
+      # `stripe listen --forward-to localhost:8000/webhook/stripe`.
+      - "3000:8000"
+      - "8000:8000"
+    environment:
+      <<: *app_env
+      # Bind mounts can swallow inotify events; poll so --reload always fires.
+      WATCHFILES_FORCE_POLLING: "true"
+    env_file:
+      - /run/base44/app.env
+    volumes: *app_volumes
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: on-failure
+
+  worker:
+    build: *app_build
+    working_dir: /srv
+    command: ["sh", "-ec", "exec celery -A app.celery_app.celery worker --loglevel=INFO --concurrency=4"]
+    environment: *app_env
+    env_file:
+      - /run/base44/app.env
+    volumes: *app_volumes
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app.celery inspect ping --timeout 10 > /dev/null 2>&1"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    restart: on-failure
+
+  # Exactly one scheduler: it publishes unsent outbox rows to Celery.
+  beat:
+    build: *app_build
+    working_dir: /srv
+    command: ["sh", "-ec", "exec celery -A app.celery_app.celery beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule --pidfile=/tmp/celerybeat.pid"]
+    environment: *app_env
+    env_file:
+      - /run/base44/app.env
+    volumes: *app_volumes
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 \"$(cat /tmp/celerybeat.pid)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: on-failure
+
+volumes:
+  pgdata:
+  redisdata:

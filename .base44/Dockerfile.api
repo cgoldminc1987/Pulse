@@ -1,0 +1,21 @@
+# Base44 sandbox image for the Stripe webhook service.
+#
+# This image intentionally contains NO application code: it installs the pinned
+# dependencies from stripe-fastapi-webhook/requirements.txt only. The source is
+# bind-mounted at /srv by docker-compose.base44.yml, so edits are picked up
+# without rebuilding. Rebuild (--build) after changing requirements.txt.
+FROM python:3.12-slim
+
+# NOTE: do NOT add PYTHONPATH=/srv here. The repo's migration folder is named
+# `alembic/`, so putting /srv on the path shadows the installed alembic library
+# and the CLI fails with "No module named 'alembic.config'". The CLI tools
+# (uvicorn, celery, alembic, pytest) all resolve from the working dir /srv.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /srv
+
+COPY stripe-fastapi-webhook/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD ["python", "--version"]
