@@ -1,0 +1,46 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+  worker:
+    build: .
+    command: celery -A app.celery_app.celery worker --loglevel=INFO --concurrency=4
+    env_file: .env
+    depends_on: { db: { condition: service_healthy }, redis: { condition: service_started }, migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
+  beat:
+    build: .
+    command: celery -A app.celery_app.celery beat --loglevel=INFO
+    env_file: .env
+    depends_on: { db: { condition: service_healthy }, redis: { condition: service_started }, migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stripe
+      POSTGRES_PASSWORD: stripe
+      POSTGRES_DB: stripe_webhooks
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U stripe -d stripe_webhooks"], interval: 5s, timeout: 5s, retries: 10 }
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes: ["redisdata:/data"]
+    restart: unless-stopped
+  migrate:
+    build: .
+    command: alembic upgrade head
+    env_file: .env
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+volumes:
+  pgdata:
+  redisdata:
