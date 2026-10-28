@@ -162,19 +162,32 @@
       ]);
       const [newMessage, setNewMessage] = useState('');
       const localVideoRef = useRef(null);
+      const localStreamRef = useRef(null);
+      const isMutedRef = useRef(false);
 
       useEffect(() => {
         let stream = null;
+        let disposed = false;
         if (!isVideoOff && navigator.mediaDevices?.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then(s => {
+              if (disposed) {
+                s.getTracks().forEach(t => t.stop());
+                return;
+              }
               stream = s;
+              localStreamRef.current = s;
+              s.getAudioTracks().forEach(t => { t.enabled = !isMutedRef.current; });
               if (localVideoRef.current) localVideoRef.current.srcObject = s;
             })
             .catch(() => {});
         }
         return () => {
-          if (stream) stream.getTracks().forEach(t => t.stop());
+          disposed = true;
+          if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            if (localStreamRef.current === stream) localStreamRef.current = null;
+          }
         };
       }, [isVideoOff]);
 
@@ -207,7 +220,12 @@
             </div>
 
             <div className="h-20 flex items-center justify-center gap-4">
-              <button onClick={() => setIsMuted(!isMuted)} className={`p-3.5 rounded-full ${isMuted ? 'bg-red-500' : 'bg-slate-700 hover:bg-slate-600'}`}>
+              <button onClick={() => {
+                const muted = !isMuted;
+                isMutedRef.current = muted;
+                localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !muted; });
+                setIsMuted(muted);
+              }} className={`p-3.5 rounded-full ${isMuted ? 'bg-red-500' : 'bg-slate-700 hover:bg-slate-600'}`}>
                 {isMuted ? <Icons.MicOff /> : <Icons.Mic />}
               </button>
               <button onClick={() => setIsVideoOff(!isVideoOff)} className={`p-3.5 rounded-full ${isVideoOff ? 'bg-red-500' : 'bg-slate-700 hover:bg-slate-600'}`}>
